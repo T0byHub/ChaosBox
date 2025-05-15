@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <title>Sand & Wasser Simulation</title>
   <style>
-    body { margin: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; }
-    canvas { border: 1px solid #888; image-rendering: pixelated; cursor: crosshair; }
+    html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: #111; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; cursor: crosshair; }
     #tools { position: absolute; top: 10px; left: 10px; z-index: 10; }
     button { margin-right: 5px; padding: 6px; font-size: 14px; }
   </style>
@@ -15,30 +15,32 @@
   <button onclick="currentElement = 1">Sand</button>
   <button onclick="currentElement = 2">Wasser</button>
 </div>
-<canvas id="sandcanvas" width="300" height="300"></canvas>
+<canvas id="sandcanvas"></canvas>
 <script>
   const canvas = document.getElementById('sandcanvas');
   const ctx = canvas.getContext('2d');
-  const width = canvas.width;
-  const height = canvas.height;
-  const pixels = new Uint8Array(width * height);
+  const SIM_WIDTH = 160;
+  const SIM_HEIGHT = 160;
+  canvas.width = SIM_WIDTH;
+  canvas.height = SIM_HEIGHT;
   let currentElement = 1; // 1 = sand, 2 = wasser
+  const pixels = new Uint8Array(SIM_WIDTH * SIM_HEIGHT);
 
   function index(x, y) {
-    return y * width + x;
+    return y * SIM_WIDTH + x;
   }
 
   function update() {
-    for (let y = height - 2; y >= 0; y--) {
-      for (let x = 1; x < width - 1; x++) {
+    for (let y = SIM_HEIGHT - 2; y >= 0; y--) {
+      for (let x = 1; x < SIM_WIDTH - 1; x++) {
         const i = index(x, y);
         const below = index(x, y + 1);
 
-        if (pixels[i] === 1) { // sand
+        if (pixels[i] === 1) {
           if (pixels[below] === 0 || pixels[below] === 2) {
             [pixels[i], pixels[below]] = [pixels[below], pixels[i]];
           }
-        } else if (pixels[i] === 2) { // wasser
+        } else if (pixels[i] === 2) {
           const dirs = [index(x, y + 1), index(x - 1, y + 1), index(x + 1, y + 1), index(x - 1, y), index(x + 1, y)];
           for (const j of dirs) {
             if (pixels[j] === 0) {
@@ -53,25 +55,31 @@
   }
 
   function draw() {
-    const imgData = ctx.createImageData(width, height);
+    const imgData = ctx.createImageData(SIM_WIDTH, SIM_HEIGHT);
     for (let i = 0; i < pixels.length; i++) {
       let r = 0, g = 0, b = 0;
-      if (pixels[i] === 1) { r = 194; g = 178; b = 128; } // sandfarbe
-      if (pixels[i] === 2) { r = 64; g = 164; b = 223; } // wasserfarbe
+      if (pixels[i] === 1) { r = 194; g = 178; b = 128; }
+      if (pixels[i] === 2) { r = 64; g = 164; b = 223; }
       imgData.data[i * 4 + 0] = r;
       imgData.data[i * 4 + 1] = g;
       imgData.data[i * 4 + 2] = b;
       imgData.data[i * 4 + 3] = 255;
     }
     ctx.putImageData(imgData, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    const displayWidth = window.innerWidth;
+    const displayHeight = window.innerHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvas, 0, 0, SIM_WIDTH, SIM_HEIGHT, 0, 0, displayWidth, displayHeight);
   }
 
   canvas.addEventListener('mousemove', e => {
     if (e.buttons === 1) {
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) / rect.width * width);
-      const y = Math.floor((e.clientY - rect.top) / rect.height * height);
-      pixels[index(x, y)] = currentElement;
+      const x = Math.floor(e.offsetX / canvas.clientWidth * SIM_WIDTH);
+      const y = Math.floor(e.offsetY / canvas.clientHeight * SIM_HEIGHT);
+      if (x >= 0 && x < SIM_WIDTH && y >= 0 && y < SIM_HEIGHT) {
+        pixels[index(x, y)] = currentElement;
+      }
     }
   });
 
